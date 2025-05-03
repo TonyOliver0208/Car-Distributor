@@ -12,6 +12,7 @@ import { useDropzone } from "react-dropzone";
 import Data from "@/Shared/Data";
 import { useTranslation } from "react-i18next";
 import { IoMdCloseCircle } from "react-icons/io";
+import { Loader2 } from "lucide-react";
 
 const SearchBar = ({ close }) => {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ const SearchBar = ({ close }) => {
   const [make, setMake] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const onDrop = (acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -39,15 +41,19 @@ const SearchBar = ({ close }) => {
   };
 
   const handleSearch = async () => {
-    if (image) {
-      const formData = new FormData();
-      formData.append("file", image);
+    setLoading(true);
+    try {
+      if (image) {
+        const formData = new FormData();
+        formData.append("file", image);
 
-      try {
-        const response = await fetch("http://localhost:8000/predict", {
-          method: "POST",
-          body: formData,
-        });
+        const response = await fetch(
+          "https://car-model-server.onrender.com/predict/",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         const data = await response.json();
         if (data.car) {
@@ -55,20 +61,22 @@ const SearchBar = ({ close }) => {
         } else {
           console.error("Search failed: No car predicted");
         }
-      } catch (error) {
-        console.error("Error during image search:", error);
-      }
-    } else {
-      const searchParams = new URLSearchParams();
-      if (cars) searchParams.append("cars", cars);
-      if (make) searchParams.append("make", make);
-      if (price) searchParams.append("price", price);
-
-      if (searchParams.toString()) {
-        window.location.href = `/search?${searchParams.toString()}`;
       } else {
-        console.error("No search criteria provided");
+        const searchParams = new URLSearchParams();
+        if (cars) searchParams.append("cars", cars);
+        if (make) searchParams.append("make", make);
+        if (price) searchParams.append("price", price);
+
+        if (searchParams.toString()) {
+          window.location.href = `/search?${searchParams.toString()}`;
+        } else {
+          console.error("No search criteria provided");
+        }
       }
+    } catch (error) {
+      console.error("Error during image search:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -168,15 +176,24 @@ const SearchBar = ({ close }) => {
           variant="outline"
           onClick={close}
           className="bg-gray-50 border border-gray-200 hover:bg-gray-100"
+          disabled={loading}
         >
           {t("cancel")}
         </Button>
         <Button
           onClick={handleSearch}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={!image && !cars && !make && !price}
+          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
+          disabled={loading || (!image && !cars && !make && !price)}
         >
-          <CiSearch className="mr-2" /> {t("search")}
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin mr-2" /> {t("searching")}
+            </>
+          ) : (
+            <>
+              <CiSearch className="mr-2" /> {t("search")}
+            </>
+          )}
         </Button>
       </div>
     </div>
